@@ -1,0 +1,28 @@
+# Each line in this file is a file pattern followed by one or more @usernames or @team-names
+# This file should be placed in the root, .github/, or docs/ directory.
+
+# Example: Default owner for all files in the repository
+* @default-owner
+
+# Section: Specific File Owners
+# Match a single file
+README.md @content-team
+
+# Section: Directory Owners
+# Assign owners to an entire directory
+src/ @dev-team
+.github/ @ci-cd-team
+
+# Section: File Extension Owners
+# Assign owners based on file extensions
+*.js @frontend-team
+*.py @backend-team
+*.yaml @ops-team
+
+# Section: Specific Path
+# Match paths explicitly
+/docs/*.md @docs-team
+
+# Section: Fallback
+# Assign owners for files that aren't matched by any of the above patterns
+* @fallback-team
