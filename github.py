@@ -114,7 +114,7 @@ def add_codowners(repo_name):
 
     for branch in ["main", "dev", "uat"]:
         # Check if CODOWNERS file exists
-        url = f"https://api.github.com/repos/{ORG_NAME}/{repo_name}/contents/.github/CODEOWNERS?ref={branch}"
+        url = f"https://api.github.com/repos/{ORG_NAME}/{repo_name}/contents/.github/CODOWNERS?ref={branch}"
         response = requests.get(url, headers=HEADERS, verify=False)
 
         if response.status_code == 200:
@@ -203,4 +203,5 @@ def main():
         print(f"An error occurred: {e}")
 
 
-if __name
+if __name__ == "__main__":
+    main()
