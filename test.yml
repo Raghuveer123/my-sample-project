@@ -1,39 +1,13 @@
 ---
-- name: Extract and save certificate and private key
+- name: Extract Private Key using sed
   hosts: localhost
-  gather_facts: no
-  vars:
-    certificate_file: /path/to/certificate.pem  # Path to save the certificate
-    private_key_file: /path/to/private_key.pem  # Path to save the private key
-    cert_response: 
-
+  gather_facts: false
   tasks:
-    - name: Clean the cert_response string
-      set_fact:
-        cert_response_clean: "{{ cert_response | regex_replace('^\"|\"$', '') | regex_replace('\\n', '\n') | regex_replace('\\s{2,}', '\n') }}"
+    - name: Extract private key from PEM file
+      ansible.builtin.shell: |
+        sed -n '/-----BEGIN PRIVATE KEY-----/,/-----END PRIVATE KEY-----/p' /tmp/example.pem > /tmp/private_key.pem
+      args:
+        removes: /tmp/private_key.pem  # Ensures idempotency by removing the output file if it exists
 
-    - name: Extract the certificate content
-      set_fact:
-        certificate_content: >-
-          {{ cert_response_clean 
-             | regex_replace('.*-----BEGIN CERTIFICATE-----', '-----BEGIN CERTIFICATE-----')
-             | regex_replace('-----END CERTIFICATE-----.*', '-----END CERTIFICATE-----') }}
-
-    - name: Extract the private key content
-      set_fact:
-        private_key_content: >-
-          {{ cert_response_clean 
-             | regex_replace('.*-----BEGIN RSA PRIVATE KEY-----', '-----BEGIN RSA PRIVATE KEY-----')
-             | regex_replace('-----END RSA PRIVATE KEY-----.*', '-----END RSA PRIVATE KEY-----') }}
-
-    - name: Save the certificate to a file
-      copy:
-        content: "{{ certificate_content }}"
-        dest: "{{ certificate_file }}"
-        mode: '0600'
-
-    - name: Save the private key to a file
-      copy:
-        content: "{{ private_key_content }}"
-        dest: "{{ private_key_file }}"
-        mode: '0600'
+    - name: Display extracted private key (optional, for debugging)
+      ansible.builtin.shell: cat /tmp/private_key.pem
