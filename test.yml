@@ -1,13 +1,22 @@
 ---
-- name: Extract Private Key using sed
+- name: Extract Private Key from PEM File
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Extract private key from PEM file
+    - name: Normalize file and extract private key
       ansible.builtin.shell: |
-        sed -n '/-----BEGIN PRIVATE KEY-----/,/-----END PRIVATE KEY-----/p' /tmp/example.pem > /tmp/private_key.pem
+        sed -n '/-----BEGIN PRIVATE KEY-----/,/-----END PRIVATE KEY-----/p' /tmp/example.pem | tr -d '\r' > /tmp/private_key.pem
       args:
-        removes: /tmp/private_key.pem  # Ensures idempotency by removing the output file if it exists
+        creates: /tmp/private_key.pem  # Prevents overwriting if the file already exists
 
-    - name: Display extracted private key (optional, for debugging)
+    - name: Validate private key content
+      ansible.builtin.shell: |
+        if ! grep -q "-----BEGIN PRIVATE KEY-----" /tmp/private_key.pem; then
+          echo "Private key extraction failed"
+          exit 1
+        fi
+      register: validate_key
+      failed_when: validate_key.rc != 0
+
+    - name: Display private key content (optional for debugging)
       ansible.builtin.shell: cat /tmp/private_key.pem
