@@ -1,1 +1,0 @@
-sed -n '/-----BEGIN CERTIFICATE-----/,/-----END CERTIFICATE-----/p' /tmp/example.pem | sed 's/^[ \t]*//g' > /tmp/private_key.pem
