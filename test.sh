@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Inputs
-OWNER="your-github-username"
-REPO="your-repo-name"
-BRANCH="main"
-TAG_NAME="v1.0.0"
-TAG_MESSAGE="Release $TAG_NAME"
-TOKEN="your-personal-access-token"
+OWNER="$OWNER"  # GitHub owner (e.g., your username or organization)
+REPO="$REPO"    # Repository name
+BRANCH="main"   # Branch name (could be parameterized)
+TAG_NAME="$TAG_NAME"  # Tag name passed from the workflow
+TAG_MESSAGE="$TAG_MESSAGE"  # Tag message passed from the workflow
+TOKEN="$GH_TOKEN"  # GitHub token passed from the workflow
 
 # 1. Get the latest commit SHA
 LATEST_COMMIT_SHA=$(curl -s -H "Authorization: Bearer $TOKEN" \
