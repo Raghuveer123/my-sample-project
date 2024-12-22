@@ -1,35 +1,76 @@
----
-- name: Extract Private Key from PEM File
-  hosts: localhost
-  gather_facts: false
-  tasks:
-    - name: Check if input file exists
-      ansible.builtin.stat:
-        path: /tmp/example.pem
-      register: input_file_stat
+name: Create Tag via REST API
 
-    - name: Fail if input file is missing
-      ansible.builtin.fail:
-        msg: "Input file /tmp/example.pem does not exist."
-      when: not input_file_stat.stat.exists
+on:
+  workflow_dispatch:  # Trigger manually
 
-    - name: Extract private key using sed
-      ansible.builtin.shell: |
-        sed -n '/-----BEGIN PRIVATE KEY-----/,/-----END PRIVATE KEY-----/p' /tmp/example.pem > /tmp/private_key.pem
-      args:
-        executable: /bin/bash
-        creates: /tmp/private_key.pem  # Ensures idempotency
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
 
-    - name: Verify private key extraction
-      ansible.builtin.shell: |
-        if grep -q "-----BEGIN PRIVATE KEY-----" /tmp/private_key.pem; then
-          echo "Private key extracted successfully."
-        else
-          echo "Failed to extract private key."
-          exit 1
-        fi
-      register: validation
-      failed_when: validation.rc != 0
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: Display extracted private key (optional, for debugging)
-      ansible.builtin.shell: cat /tmp/private_key.pem
+      - name: Create Tag Using REST API
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Token from repository secrets
+          OWNER: your-github-username       # Replace with your GitHub username or organization
+          REPO: your-repo-name              # Replace with your repository name
+          BRANCH: main                      # Replace with the branch to tag
+          TAG_NAME: v1.0.0                  # Replace with your desired tag name
+          TAG_MESSAGE: "Release v1.0.0"     # Replace with your tag message
+        run: |
+          #!/bin/bash
+
+          # 1. Get the latest commit SHA
+          LATEST_COMMIT_SHA=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$OWNER/$REPO/git/ref/heads/$BRANCH" | jq -r '.object.sha')
+
+          if [[ -z "$LATEST_COMMIT_SHA" || "$LATEST_COMMIT_SHA" == "null" ]]; then
+            echo "Failed to fetch the latest commit SHA"
+            exit 1
+          fi
+
+          echo "Latest commit SHA: $LATEST_COMMIT_SHA"
+
+          # 2. Create the tag object
+          TAG_OBJECT=$(curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d @- "https://api.github.com/repos/$OWNER/$REPO/git/tags" <<EOF
+{
+  "tag": "$TAG_NAME",
+  "message": "$TAG_MESSAGE",
+  "object": "$LATEST_COMMIT_SHA",
+  "type": "commit"
+}
+EOF
+          )
+
+          TAG_SHA=$(echo "$TAG_OBJECT" | jq -r '.sha')
+
+          if [[ -z "$TAG_SHA" || "$TAG_SHA" == "null" ]]; then
+            echo "Failed to create the tag object"
+            exit 1
+          fi
+
+          echo "Tag object SHA: $TAG_SHA"
+
+          # 3. Create the tag reference
+          CREATE_REF_RESPONSE=$(curl -s -X POST -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d @- "https://api.github.com/repos/$OWNER/$REPO/git/refs" <<EOF
+{
+  "ref": "refs/tags/$TAG_NAME",
+  "sha": "$TAG_SHA"
+}
+EOF
+          )
+
+          if echo "$CREATE_REF_RESPONSE" | grep -q '"ref":'; then
+            echo "Tag $TAG_NAME successfully created and pushed!"
+          else
+            echo "Failed to create the tag reference"
+            echo "$CREATE_REF_RESPONSE"
+            exit 1
+          fi
