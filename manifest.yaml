@@ -1,0 +1,58 @@
+name: Call External Shell Script to Create Tag
+
+on:
+  workflow_dispatch:  # Trigger manually
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Git Authentication
+        run: |
+          git config --global user.email "youremail@example.com"  # Replace with your email
+          git config --global user.name "Your Name"  # Replace with your name
+
+      - name: Read Tag Information from manifest.json
+        id: read-manifest
+        run: |
+          # Read the version information from the manifest.json
+          ENVIRONMENT="${{ github.ref }}"  # Determine environment based on the branch (Dev, UAT, Prod)
+          VERSION=$(jq -r ".${ENVIRONMENT}" manifest.json)
+          echo "Version for $ENVIRONMENT: $VERSION"
+
+          # Extract major, minor, and patch versions
+          VERSION_MAJOR=$(echo $VERSION | cut -d'.' -f1)
+          VERSION_MINOR=$(echo $VERSION | cut -d'.' -f2)
+          VERSION_PATCH=$(echo $VERSION | cut -d'.' -f3)
+          echo "Major version: $VERSION_MAJOR"
+          echo "Minor version: $VERSION_MINOR"
+          echo "Patch version: $VERSION_PATCH"
+
+          # Set as global environment variables for the current job
+          echo "VERSION_MAJOR=$VERSION_MAJOR" >> $GITHUB_ENV
+          echo "VERSION_MINOR=$VERSION_MINOR" >> $GITHUB_ENV
+          echo "VERSION_PATCH=$VERSION_PATCH" >> $GITHUB_ENV
+
+          # Set these values as outputs for use in the workflow
+          echo "::set-output name=version_major::$VERSION_MAJOR"
+          echo "::set-output name=version_minor::$VERSION_MINOR"
+          echo "::set-output name=version_patch::$VERSION_PATCH"
+
+      - name: Make the Shell Script Executable
+        run: chmod +x ./create-tag.sh  # Ensure the shell script has execute permissions
+
+      - name: Call Shell Script to Create Tag
+        run: ./create-tag.sh  # Run the shell script
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}  # Pass the GitHub token from repository secrets
+          OWNER: your-github-username       # Replace with your GitHub username or organization
+          REPO: your-repo-name              # Replace with your repository name
+          VERSION_PATH: ${{ env.VERSION_PATCH }}  # Pass version patch
+          VERSION_MINOR: ${{ env.VERSION_MINOR }}  # Pass version minor
+          VERSION_MAJOR: ${{ env.VERSION_MAJOR }}  # Pass version major
+          TAG_NAME: ${{ github.event.inputs.tag_name }}  # Tag passed as input
+          TAG_MESSAGE: "Release version $VERSION_MAJOR.$VERSION_MINOR.$VERSION_PATCH"  # Tag message
