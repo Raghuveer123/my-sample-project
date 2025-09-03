@@ -28,11 +28,14 @@ get_max_file_size() {
 
     # Fetch assets
     RESPONSE=$(curl -s -u "$USERNAME:$PASSWORD" "$URL")
-    SIZES=$(echo "$RESPONSE" | jq '.items[].size')
+    SIZES=$(echo "$RESPONSE" | jq '.items[].size // 0')
 
     for size in $SIZES; do
-      if [ "$size" -gt "$maxSize" ]; then
-        maxSize=$size
+      # Ensure size is a valid integer
+      if [[ "$size" =~ ^[0-9]+$ ]]; then
+        if [ "$size" -gt "$maxSize" ]; then
+          maxSize=$size
+        fi
       fi
     done
 
